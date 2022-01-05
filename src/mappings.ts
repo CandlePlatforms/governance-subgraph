@@ -1,11 +1,10 @@
-import { Bytes, log } from "@graphprotocol/graph-ts";
+import { Address, Bytes, log } from "@graphprotocol/graph-ts";
 import {
   ProposalCreated,
   ProposalCanceled,
-  ProposalQueued,
   ProposalExecuted,
   VoteCast
-} from "../generated/GovernorAlpha/GovernorAlpha";
+} from "../generated/CandleGovernor/CandleGovernor";
 import {
   DelegateChanged,
   DelegateVotesChanged,
@@ -34,7 +33,7 @@ import { toDecimal } from "./utils/decimals";
 //   handler: handleProposalCreated
 
 export function handleProposalCreated(event: ProposalCreated): void {
-  let proposal = getOrCreateProposal(event.params.id.toString());
+  let proposal = getOrCreateProposal(event.params.proposalId.toString());
   let proposer = getOrCreateDelegate(
     event.params.proposer.toHexString(),
     false
@@ -70,46 +69,28 @@ export function handleProposalCreated(event: ProposalCreated): void {
 //   handler: handleProposalCanceled
 
 export function handleProposalCanceled(event: ProposalCanceled): void {
-  let proposal = getOrCreateProposal(event.params.id.toString());
+  let proposal = getOrCreateProposal(event.params.proposalId.toString());
 
   proposal.status = STATUS_CANCELLED;
   proposal.save();
 }
 
-// - event: ProposalQueued(uint256,uint256)
-//   handler: handleProposalQueued
-
-export function handleProposalQueued(event: ProposalQueued): void {
-  let governance = getGovernanceEntity();
-  let proposal = getOrCreateProposal(event.params.id.toString());
-
-  proposal.status = STATUS_QUEUED;
-  proposal.executionETA = event.params.eta;
-  proposal.save();
-
-  governance.proposalsQueued += BIGINT_ONE;
-  governance.save();
-}
-
-// - event: ProposalExecuted(uint256)
-//   handler: handleProposalExecuted
-
 export function handleProposalExecuted(event: ProposalExecuted): void {
-  let governance = getGovernanceEntity();
-  let proposal = getOrCreateProposal(event.params.id.toString());
+  let proposal = getOrCreateProposal(event.params.proposalId.toString());
 
   proposal.status = STATUS_EXECUTED;
   proposal.executionETA = null;
   proposal.save();
-
-  governance.proposalsQueued -= BIGINT_ONE;
-  governance.save();
 }
 
-// - event: VoteCast(address,uint256,bool,uint256)
+// - event: VoteCast(indexed address,uint256,uint8,uint256,string)
 //   handler: handleVoteCast
 
 export function handleVoteCast(event: VoteCast): void {
+  if (event.params.support > 1) {
+    return;
+  }
+
   let proposal = getOrCreateProposal(event.params.proposalId.toString());
   let voteId = event.params.voter
     .toHexString()
@@ -132,9 +113,9 @@ export function handleVoteCast(event: VoteCast): void {
 
   vote.proposal = proposal.id;
   vote.voter = voter.id;
-  vote.votesRaw = event.params.votes;
-  vote.votes = toDecimal(event.params.votes);
-  vote.support = event.params.support;
+  vote.votesRaw = event.params.weight;
+  vote.votes = toDecimal(event.params.weight);
+  vote.support = !!event.params.support;
 
   vote.save();
 
@@ -151,20 +132,20 @@ export function handleDelegateChanged(event: DelegateChanged): void {
   let tokenHolder = getOrCreateTokenHolder(
     event.params.delegator.toHexString()
   );
-  let previousDelegate = getOrCreateDelegate(
-    event.params.fromDelegate.toHexString()
-  );
+
+  if (event.params.fromDelegate != Address.fromString(ZERO_ADDRESS)) {
+    let previousDelegate = getOrCreateDelegate(event.params.fromDelegate.toHexString());
+    previousDelegate.tokenHoldersRepresentedAmount -= 1;
+    previousDelegate.save();
+  }
+  
   let newDelegate = getOrCreateDelegate(event.params.toDelegate.toHexString());
+
+  newDelegate.tokenHoldersRepresentedAmount += 1;
+  newDelegate.save();
 
   tokenHolder.delegate = newDelegate.id;
   tokenHolder.save();
-
-  previousDelegate.tokenHoldersRepresentedAmount =
-    previousDelegate.tokenHoldersRepresentedAmount - 1;
-  newDelegate.tokenHoldersRepresentedAmount =
-    newDelegate.tokenHoldersRepresentedAmount + 1;
-  previousDelegate.save();
-  newDelegate.save();
 }
 
 // - event: DelegateVotesChanged(indexed address,uint256,uint256)
@@ -174,7 +155,6 @@ export function handleDelegateVotesChanged(event: DelegateVotesChanged): void {
   let governance = getGovernanceEntity();
   let delegate = getOrCreateDelegate(event.params.delegate.toHexString());
   let votesDifference = event.params.newBalance - event.params.previousBalance;
-
   delegate.delegatedVotesRaw = event.params.newBalance;
   delegate.delegatedVotes = toDecimal(event.params.newBalance);
   delegate.save();

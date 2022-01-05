@@ -5,8 +5,8 @@
   "scripts": {
     "codegen": "graph codegen",
     "build": "graph build",
-    "deploy": "graph deploy --node https://api.thegraph.com/deploy/ Candleplatforms/Candlegovernor",
-    "deploy-dev": "graph deploy --node https://api.thegraph.com/deploy/ Candleplatforms/Candlegovernor",
+    "deploy": "graph deploy --node https://api.thegraph.com/deploy/ candleplatforms/candlegovernor",
+    "deploy-dev": "graph deploy --node https://api.thegraph.com/deploy/ candleplatforms/candlegovernor",
     "create-local": "graph create --node http://localhost:8020/Candleplatforms/Candle-governance",
     "remove-local": "graph remove --node http://localhost:8020/Candleplatforms/Candle-governance",
     "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001/Candleplatforms/Candle-governance"

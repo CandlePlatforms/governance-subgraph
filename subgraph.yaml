@@ -5,11 +5,11 @@ schema:
   file: ./schema.graphql
 dataSources:
   - kind: ethereum/contract
-    name: GovernorAlpha
+    name: CandleGovernor
     network: mainnet
     source:
       address: "0xB80Be29667021AE0B617AC9eFe0a3A1a58033681"
-      abi: GovernorAlpha
+      abi: CandleGovernor
       startBlock: 13904644
     mapping:
       kind: ethereum/events
@@ -23,18 +23,16 @@ dataSources:
         - Vote
         - Governance
       abis:
-        - name: GovernorAlpha
-          file: ./abis/GovernorAlpha.json
+        - name: CandleGovernor
+          file: ./abis/CandleGovernor.json
       eventHandlers:
         - event: ProposalCreated(uint256,address,address[],uint256[],string[],bytes[],uint256,uint256,string)
           handler: handleProposalCreated
         - event: ProposalCanceled(uint256)
           handler: handleProposalCanceled
-        - event: ProposalQueued(uint256,uint256)
-          handler: handleProposalQueued
         - event: ProposalExecuted(uint256)
           handler: handleProposalExecuted
-        - event: VoteCast(address,uint256,bool,uint256)
+        - event: VoteCast(indexed address,uint256,uint8,uint256,string)
           handler: handleVoteCast
   - kind: ethereum/contract
     name: Candle
